@@ -9,12 +9,12 @@
 #include <sys/stat.h>
 #include "utils.h"
 
-#define MAX_PID_LENGTH 10
+#define MAX_PID_LENGTH 10 //de mutat in constants
 
 int daemon_pid;
 
-void write_instruction_to_daemon(const char* instruction) {
-    create_dir_if_not_exists(instruction_file_path);
+void write_to_daemon(const char* instruction) {
+    create_directory(instruction_file_path);
 
     int fd = open(instruction_file_path, O_CREAT | O_TRUNC | O_WRONLY, S_IRWXU | S_IRWXG | S_IRWXO);
     int len = strlen(instruction);
@@ -30,7 +30,7 @@ void write_instruction_to_daemon(const char* instruction) {
     }
 }
 
-pid_t read_daemon_pid_from_file() {
+void read_daemon_pid() {
     int fd = open(daemon_pid_file_path, O_RDONLY);
     if (fd < 0) {
         perror("Daemon hasn't started");
@@ -46,30 +46,29 @@ pid_t read_daemon_pid_from_file() {
         return -1;
     }
 
-    return atoi(buf);
+    daemon_pid=atoi(buf);
 }
 
-void get_daemon_pid() {
-    daemon_pid = read_daemon_pid_from_file();
-}
-
-void process_output_from_daemon(int signo) {
+void read_resoults_from_daemon(int signo) {
     char* res = malloc(1000000);
+    daemon_message("Dupa primeste marime fisier\n");
     FILE* file = fopen(output_file_path, "r");
     if (file == NULL) {
         perror("Couldn't open daemon output file");
         return;
     }
+    daemon_message("Inainte de malloc\n");
 
+    daemon_message("Dupa malloc\n");
     fread(res, 1, 1000000, file);
     fclose(file);
-
+    daemon_message("Dupa read\n");
     printf("%s\n", res);
     free(res);
 }
 
-void write_da_pid_to_file() {
-    create_dir_if_not_exists(da_pid_file_path);
+void write_da_pid() {
+    create_directory(da_pid_file_path);
 
     char pidstring[MAX_PID_LENGTH];
     sprintf(pidstring, "%d", getpid());
@@ -85,9 +84,9 @@ void write_da_pid_to_file() {
 }
 
 int main(int argc, char** argv) {
-    signal(SIGUSR2, process_output_from_daemon);
-    write_da_pid_to_file();
-    get_daemon_pid();
+    signal(SIGUSR2, read_resoults_from_daemon);
+    write_da_pid();
+    read_daemon_pid();
 
     char instruction[INSTR_LENGTH];
     if (argc == 1) {
@@ -167,9 +166,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    write_instruction_to_daemon(instruction);
+    write_to_daemon(instruction);
 
     return EXIT_SUCCESS;
 }
-
 
