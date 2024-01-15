@@ -10,8 +10,94 @@
 #include "utils.h"
 
 #define MAX_PID_LENGTH 10 //de mutat in constants
-
+#define VALID_OPTIONS_COUNT 6
+const char *VALID_OPTIONS[VALID_OPTIONS_COUNT] = {"--add", "--list", "--help", "--suspend", "--resume"};
 int daemon_pid;
+
+bool is_add_command(const char *command) {
+    return (strcmp(command, "--add") == 0);
+}
+
+bool is_priority_option(const char *option) {
+    // Assuming a valid priority option is a non-empty string containing only digits
+    if (option == NULL || option[0] == '\0') {
+        return false;  // Empty string is not a valid priority option
+    }
+
+    for (size_t i = 0; option[i] != '\0'; ++i) {
+        if (!isdigit(option[i])) {
+            return false;  // Non-digit character found
+        }
+    }
+
+    return true;  // All characters are digits, indicating a valid priority option
+}
+
+bool check_valid_option(const char *option) {
+    for (int i = 0; i < VALID_OPTIONS_COUNT; ++i) {
+        if (strcmp(option, VALID_OPTIONS[i]) == 0) {
+            return true;  // Valid option found
+        }
+    }
+    return false;  // Option not found in the valid options
+}
+
+bool is_list_help_command(const char *command) {
+    return (strcmp(command, "--list") == 0 || strcmp(command, "--help") == 0);
+}
+
+bool validate_priority_option(const char *option, char *priority) {
+    // Assuming valid priorities are integers in the range 1-5
+    int priorityValue = atoi(option);
+
+    if (priorityValue >= 1 && priorityValue <= 5) {
+        // Valid priority, copy it to the output buffer (e.g., priority)
+        snprintf(priority, 7, "%d", priorityValue);
+        return true;
+    } else {
+        // Invalid priority
+        return false;
+    }
+}
+
+bool is_list_command(const char *command) {
+    return (strcmp(command, "--list") == 0);
+}
+
+bool is_help_command(const char *command) {
+    return (strcmp(command, "--help") == 0);
+}
+
+bool is_suspend_command(const char *command) {
+    return (strcmp(command, "--suspend") == 0);
+}
+
+bool is_remove_command(const char *command) {
+    return (strcmp(command, "--remove") == 0);
+}
+
+bool is_info_command(const char *command) {
+    return (strcmp(command, "--info") == 0);
+}
+
+bool is_print_command(const char *command) {
+    return (strcmp(command, "--print") == 0);
+}
+
+bool is_valid_task_id(const char *task_id) {
+    // Assuming a valid task ID is a non-empty string containing only digits
+    if (task_id == NULL || task_id[0] == '\0') {
+        return false;  // Empty string is not a valid task ID
+    }
+
+    for (size_t i = 0; task_id[i] != '\0'; ++i) {
+        if (!isdigit(task_id[i])) {
+            return false;  // Non-digit character found
+        }
+    }
+
+    return true;  // All characters are digits, indicating a valid task ID
+}
 
 void write_to_daemon(const char* instruction) {
     create_directory(instruction_file_path);
@@ -34,7 +120,7 @@ void read_daemon_pid() {
     int fd = open(daemon_pid_file_path, O_RDONLY);
     if (fd < 0) {
         perror("Daemon hasn't started");
-        return errno;
+        exit(EXIT_FAILURE);
     }
 
     char buf[MAX_PID_LENGTH];
@@ -43,7 +129,7 @@ void read_daemon_pid() {
 
     if (bytesRead <= 0) {
         perror("Error reading daemon pid");
-        return -1;
+        exit(EXIT_FAILURE);
     }
 
     daemon_pid=atoi(buf);
@@ -51,17 +137,28 @@ void read_daemon_pid() {
 
 void read_resoults_from_daemon(int signo) {
     char* res = malloc(1000000);
+    if (res == NULL) {
+        perror("Memory allocation error");
+        exit(EXIT_FAILURE);
+    }
     daemon_message("Dupa primeste marime fisier\n");
     FILE* file = fopen(output_file_path, "r");
     if (file == NULL) {
         perror("Couldn't open daemon output file");
+        free(res);
         return;
     }
     daemon_message("Inainte de malloc\n");
 
     daemon_message("Dupa malloc\n");
-    fread(res, 1, 1000000, file);
+    syze_t bytesRead = fread(res, 1, 1000000, file);
     fclose(file);
+
+    if (bytesRead <= 0) {
+        perror("Error reading from daemon output file");
+        free(res);  // Free allocated memory before exiting
+        exit(EXIT_FAILURE);
+    }
     daemon_message("Dupa read\n");
     printf("%s\n", res);
     free(res);
