@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include "utils.h"
-
+int daemon_pid;
 void write_to_daemon(const char* instruction) {
     create_directory(instruction_file_path);
 
